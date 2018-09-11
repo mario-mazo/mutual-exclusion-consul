@@ -56,7 +56,7 @@ func (ec *exclusiveWorker) createSession() error {
 	return nil
 }
 
-//step2: Acquire Session
+// step2: Acquire Session
 // acquireSession basically creates the mutual exclusion lock
 func (ec *exclusiveWorker) acquireSession() (bool, error) {
 	KVpair := &api.KVPair{
@@ -82,7 +82,7 @@ func (ec *exclusiveWorker) renewSession(doneChan chan struct{}) error {
 	return nil
 }
 
-// destroySession destroyes the session by triggering the behavior. So it will delete de Key as well
+// destroySession destroys the session by triggering the behavior. So it will delete de Key as well
 func (ec *exclusiveWorker) destroySession() error {
 	_, err := ec.client.Session().Destroy(ec.sessionID, nil)
 	if err != nil {
@@ -118,20 +118,23 @@ func main() {
 	}
 
 	if canWork {
-		fmt.Println("I can work yay")
+		fmt.Println("I can work. YAY!!!")
 
 		doneChan := make(chan struct{})
-		go w.renewSession(doneChan)
+		go w.renewSession(doneChan) // We send renewSession() to its own go routine
+
+		// Here we simulate the long running task
 		fmt.Println("Starting to work")
 		time.Sleep(30 * time.Second)
 		close(doneChan)
 		fmt.Println("Work done")
-		// Note: Due to lock-delay (default 15s) you wount be able to get
+
+		// Note: Due to lock-delay (default 15s) you will not be able to get
 		//       the lock right after destroying the session
 		//       https://www.consul.io/docs/internals/sessions.html
 		w.destroySession()
 		return
 	}
 
-	fmt.Println("I can NOT work yay")
+	fmt.Println("I can NOT work. YAY!!!")
 }
