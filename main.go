@@ -9,19 +9,22 @@ import (
 	"github.com/hashicorp/consul/api"
 )
 
+// exclusiveWorkerConfig holds the configuration to create a new Exclusive Worker
 type exclusiveWorkerConfig struct {
 	client         *api.Client // Consul client
-	key            string      // Worker Key
+	key            string      // Worker Key (in other words taskID)
 	sessionTimeout string      // Session timeout
 }
 
+// exclusiveWorker is the struct that hold the worker (or Leader)
 type exclusiveWorker struct {
 	client         *api.Client // Consul client
-	key            string      // Worker Key
-	sessionID      string      // Id of session
+	key            string      // Worker Key (in other words taskID)
+	sessionID      string      // Id of session created in consul
 	sessionTimeout string      // Session timeout
 }
 
+// newExclusiveWorker creates new exclusive worker
 func newExclusiveWorker(ewc *exclusiveWorkerConfig) *exclusiveWorker {
 	ew := &exclusiveWorker{
 		client:         ewc.client,
@@ -32,12 +35,12 @@ func newExclusiveWorker(ewc *exclusiveWorkerConfig) *exclusiveWorker {
 }
 
 // Step1: Create session
+// createSession creates a session in consul with especified TTL and behavior set to delete
 func (ec *exclusiveWorker) createSession() error {
-
-	// you can call session.Destroy on the old session ID
-	// that has acquired the Key (which you can find by calling kv.Get on your key).
-	// This will cause the session behavior to trigger - e.g. if the behavior is set to delete,
-	// the key will be deleted. This is the same as the session expiring normally.
+	// You can call session.Destroy on the old session ID
+	// that has acquired the Key. This will cause the session behavior to trigger - e.g.
+	// if the behavior is set to delete the key will be deleted.
+	// This is the same as the session expiring normally.
 	sessinConf := &api.SessionEntry{
 		TTL:      ec.sessionTimeout,
 		Behavior: "delete",
@@ -54,6 +57,7 @@ func (ec *exclusiveWorker) createSession() error {
 }
 
 //step2: Acquire Session
+// acquireSession basically creates the mutual exclusion lock
 func (ec *exclusiveWorker) acquireSession() (bool, error) {
 	KVpair := &api.KVPair{
 		Key:     ec.key,
@@ -65,8 +69,11 @@ func (ec *exclusiveWorker) acquireSession() (bool, error) {
 	return aquired, err
 }
 
-// we need to renew the session bc the TTL will kill
+// We need to renew the session because the TTL will destroy
 // the session if its not renewed and the task is taking too long
+// RenewPeriodic renews the session each sessionTimeout/2 as indicated in the code of the client.
+// https://github.com/hashicorp/consul/blob/e3cabb3a261d9583393aec99ef50bbfc666128b9/api/session.go#L148
+// renewSession takes a channel that we later use (by closing it) to signal that no more renewals are necessary
 func (ec *exclusiveWorker) renewSession(doneChan chan struct{}) error {
 	err := ec.client.Session().RenewPeriodic(ec.sessionTimeout, ec.sessionID, nil, doneChan)
 	if err != nil {
@@ -75,6 +82,7 @@ func (ec *exclusiveWorker) renewSession(doneChan chan struct{}) error {
 	return nil
 }
 
+// destroySession destroyes the session by triggering the behavior. So it will delete de Key as well
 func (ec *exclusiveWorker) destroySession() error {
 	_, err := ec.client.Session().Destroy(ec.sessionID, nil)
 	if err != nil {
@@ -116,8 +124,11 @@ func main() {
 		go w.renewSession(doneChan)
 		fmt.Println("Starting to work")
 		time.Sleep(30 * time.Second)
-		close(doneChan) // +TLL
+		close(doneChan)
 		fmt.Println("Work done")
+		// Note: Due to lock-delay (default 15s) you wount be able to get
+		//       the lock right after destroying the session
+		//       https://www.consul.io/docs/internals/sessions.html
 		w.destroySession()
 		return
 	}

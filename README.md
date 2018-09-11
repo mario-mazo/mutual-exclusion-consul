@@ -1,6 +1,7 @@
 # mutual-exclusion-consul
 
-Mutual exclusion example using client side leader election with consul
+Mutual exclusion example using client side [leader election](https://www.consul.io/docs/guides/leader-election.html) with consul.
+
 
 ## Links
 
@@ -10,3 +11,4 @@ Mutual exclusion example using client side leader election with consul
 
 - Implement `stop()`
 - Implement signal hadling like `Ctrl+c`
+- Implement `Discovering the Leader`
