@@ -75,22 +75,6 @@ func (ec *exclusiveWorker) renewSession(doneChan chan struct{}) error {
 	return nil
 }
 
-func (ec *exclusiveWorker) releaseSession() error {
-	KVpair := &api.KVPair{
-		Key:     ec.key,
-		Value:   []byte(ec.sessionID),
-		Session: ec.sessionID,
-	}
-
-	_, _, err := ec.client.KV().Release(KVpair, nil)
-	if err != nil {
-		erroMsg := fmt.Sprintf("ERROR cannot release session %s: %s", ec.sessionID, err)
-		return errors.New(erroMsg)
-	}
-
-	return nil
-}
-
 func (ec *exclusiveWorker) destroySession() error {
 	_, err := ec.client.Session().Destroy(ec.sessionID, nil)
 	if err != nil {
@@ -118,7 +102,7 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	defer w.releaseSession()
+	defer w.destroySession()
 
 	canWork, err := w.acquireSession()
 	if err != nil {
