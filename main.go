@@ -120,7 +120,7 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	// We handle the signal interrupt in case the job is  by
+	// We handle the signal interrupt in case the job is interrupted  by
 	// doing a Ctrl+C  in the terminal.
 	// This is a also be seen on how to stop the task
 	c := make(chan os.Signal, 1)
