@@ -4,7 +4,7 @@ Implementing mutually exclusive is fun and useful. In this post I will show how 
 pattern using client side [leader election](https://www.consul.io/docs/guides/leader-election.html) with consul.
 
 The reason I chose consul for this task is because it was already available in our infrastructure, but the same could be achieved with different
-tools, for example `AWS dynamoDB`.
+tools, for example `AWS dynamoDB`. Basically you just need a `Key-Value` store that support locks.
 
 ## The problem
 
@@ -28,7 +28,37 @@ so all other job servers skip that task, and move on to the next task. This way 
 
 ### Client side leader election
 
+The [leader election](https://www.consul.io/docs/guides/leader-election.html) _algorithm_ is quite simple its just two steps:
 
+- Create a session in consul
+- Try to put a `Lock` on that session
+
+#### *Step 1:* Creating the session
+First we will create a small wrapper function around the session creation. 
+
+```go
+func (ec *exclusiveWorker) createSession() error {
+	sessinConf := &api.SessionEntry{
+		TTL:      ec.sessionTimeout,
+		Behavior: "delete",
+	}
+
+	sessionID, _, err := ec.client.Session().Create(sessinConf, nil)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("sessionID:", sessionID)
+	ec.sessionID = sessionID
+	return nil
+}
+```
+
+We will pass to configuration parameters to the [go consul client](https://github.com/hashicorp/consul/api)
+
+- `TTL`: This is the time out for the session. After this time has passed, consul will execute the _behavior_
+
+- `Behavior`: This `delete` behavior means that after the TTL has been reached the session is deleted and the Key associated with it
 
 ## Links
 
@@ -40,4 +70,5 @@ so all other job servers skip that task, and move on to the next task. This way 
 - Implement `Discovering the Leader`
 
 
-[arch]: mutual-exclusion.jpg "Architecture"
+[arch]: https://raw.githubusercontent.com/mario-mazo/mutual-exclusion-consul/master/assets/mutual-exclusion.jpg "Architecture"
+
