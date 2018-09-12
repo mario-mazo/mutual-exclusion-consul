@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
+	"os/signal"
 	"time"
 
 	"github.com/hashicorp/consul/api"
@@ -94,6 +96,7 @@ func (ec *exclusiveWorker) destroySession() error {
 }
 
 func main() {
+
 	client, err := api.NewClient(&api.Config{Address: "localhost:8500"})
 	if err != nil {
 		log.Fatalln(err)
@@ -117,6 +120,21 @@ func main() {
 		log.Fatalln(err)
 	}
 
+	// We handle the signal interrupt in case the job is  by
+	// doing a Ctrl+C  in the terminal.
+	// This is a also be seen on how to stop the task
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	go func() {
+		<-c
+		log.Println("Job interrupted. Cleaning up")
+		err := w.destroySession()
+		if err != nil {
+			log.Println("Could not destroy session")
+		}
+		os.Exit(0)
+	}()
+
 	if canWork {
 		fmt.Println("I can work. YAY!!!")
 
@@ -132,7 +150,10 @@ func main() {
 		// Note: Due to lock-delay (default 15s) you will not be able to get
 		//       the lock right after destroying the session
 		//       https://www.consul.io/docs/internals/sessions.html
-		w.destroySession()
+		err := w.destroySession()
+		if err != nil {
+			log.Println("Could not destroy session")
+		}
 		return
 	}
 

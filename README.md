@@ -10,5 +10,4 @@ Mutual exclusion example using client side [leader election](https://www.consul.
 ## TODOs
 
 - Implement `stop()`
-- Implement signal hadling like `Ctrl+c`
 - Implement `Discovering the Leader`
