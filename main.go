@@ -76,7 +76,7 @@ func (ec *exclusiveWorker) acquireSession() (bool, error) {
 // RenewPeriodic renews the session each sessionTimeout/2 as indicated in the code of the client.
 // https://github.com/hashicorp/consul/blob/e3cabb3a261d9583393aec99ef50bbfc666128b9/api/session.go#L148
 // renewSession takes a channel that we later use (by closing it) to signal that no more renewals are necessary
-func (ec *exclusiveWorker) renewSession(doneChan chan struct{}) error {
+func (ec *exclusiveWorker) renewSession(doneChan <-chan struct{}) error {
 	err := ec.client.Session().RenewPeriodic(ec.sessionTimeout, ec.sessionID, nil, doneChan)
 	if err != nil {
 		return err
@@ -122,7 +122,7 @@ func main() {
 
 	// We handle the signal interrupt in case the job is interrupted  by
 	// doing a Ctrl+C  in the terminal.
-	// This is a also be seen on how to stop the task
+	// This can also be seen on how to stop the task which was not implemented
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	go func() {
@@ -135,6 +135,8 @@ func main() {
 		os.Exit(0)
 	}()
 
+	// If we were able to lock the session that means we are leaders so we can start
+	// doing some work
 	if canWork {
 		fmt.Println("I can work. YAY!!!")
 
