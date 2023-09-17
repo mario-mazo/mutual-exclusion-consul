@@ -1,7 +1,7 @@
 # mutual-exclusion-consul
 
 > [!WARNING]  
-> This has not been updated in a long time be careful, things might have changed
+> This has not been updated in a long time!!! be careful, things might have changed
 
 Mutual exclusion example using client side [leader election](https://www.consul.io/docs/guides/leader-election.html) with consul.
 
